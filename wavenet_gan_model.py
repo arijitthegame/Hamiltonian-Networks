@@ -6,7 +6,7 @@ from scipy import integrate, constants
 import torch
 from torch import nn, optim
 from torch.autograd import grad
-from autograd.numpy import numpy as np
+import autograd.numpy as np
 from torch.autograd.variable import Variable
 from torchvision import transforms, datasets
 from utils import Logger
@@ -128,23 +128,23 @@ def schrodinger_loss(self, DiscriminatorNet, Potential, coords):
 #TODO Disable warning if the output is independent of the input
 
 #Define loss 
-def discriminator_loss(DiscriminatorNet, prob, coords, schrondinger_loss, a=0, real_data, fake_data, optimizer):
+def discriminator_loss(DiscriminatorNet, prob, coords, schrondinger_loss, real_data, fake_data, optimizer, a=0):
 #Implement the smoothness of the wave function by Cauchy-Riemann equations. Disabling the CR and the prob functions for the time being and see what we get
     discriminator = self.DiscriminatorNet(coords)
     u, v = discriminator
     prob = self.prob(coords, discriminator)
     N =  real_data.size(0)
     loss = nn.BCEloss()
-    schrondinger_loss_real = self.schrondinger_loss(discriminator, Potential=0, real_data)
-    schrondinger_loss_fake = self.schrondinger_loss(discriminator, Potential=0, fake_data)
+    schrondinger_loss_real = self.schrondinger_loss(discriminator, real_data, Potential =0)
+    schrondinger_loss_fake = self.schrondinger_loss(discriminator, fake_data, Potential =0)
 #Potential is set to 0 to see what comes out. Ecventually we will think of interesting functions for potential
     optimizer.zero_grad()
     pred_real = (square(u)(real_data) + square(v)(real_data))/2
-    error_real = a*square(grad(u,0)-grad(v,1))(real_data) + a*square(grad(u,1)+grad(v,0))(real_data) + a*square(prob - 1)(real_data, discriminator) + schrondinger_loss_real + loss(pred_real, ones_target(N))
+    error_real = a*square(grad(u,0)-grad(v,1))(real_data) + a*square(grad(u,1)+grad(v,0))(real_data) + a*square(prob - 1)(real_data, discriminator) + schrondinger_loss_real(real_data) + loss(pred_real, ones_target(N))
     error_real.backward()
 
-    pred_fake = (square(u)(fake_data) + square(v)(fake_data) 
-    error_fake = a*square(grad(u,0)-grad(v,1))(fake_data) + a*square(grad(u,1)+grad(v,0))(fake_data) + a*square(prob - 1)(fake_data, discriminator) + schrondinger_loss_fake + loss(pred_fake, zeros_target(N))
+    pred_fake = square(u)(fake_data) + square(v)(fake_data) 
+    error_fake = a*square(grad(u,0)-grad(v,1))(fake_data)+a*square(grad(u,1)+grad(v,0))(fake_data) + a*square(prob - 1)(fake_data, discriminator)+schrondinger_loss_fake(fake_data) + loss(pred_fake, zeros_target(N))
     error_fake.backward()
     optimizer.step()
     return error_real + error_fake, pred_real, pred_fake
